@@ -12,6 +12,14 @@ local Services = setmetatable({}, {
     end
 });
 
+-- Добавляем недостающие сервисы
+local RunService = Services.RunService
+local UserInputService = Services.UserInputService
+local TweenService = Services.TweenService
+local HttpService = Services.HttpService
+local Players = Services.Players
+local CoreGui = Services.CoreGui
+
 local GetPlayers = Services.Players.GetPlayers
 local JSONEncode, JSONDecode, GenerateGUID = 
     Services.HttpService.JSONEncode, 
@@ -101,6 +109,11 @@ local Disconnect;
 do
     local CalledConnection = CConnect(Connection, function() end);
     Disconnect = CalledConnection.Disconnect
+end
+
+-- Добавляем функцию CThread для корутин
+local CThread = function(func)
+    return coroutine.resume(coroutine.create(func))
 end
 
 local Connections = {}
@@ -225,7 +238,7 @@ Utils.SmoothScroll = function(content, SmoothingFactor)
 	syncProperty "AnchorPoint"
 	syncProperty "Visible"
 
-	local smoothConnection = AddConnection(CConnect(Services.RunService.RenderStepped, function()
+	local smoothConnection = AddConnection(CConnect(RunService.RenderStepped, function()
 		local a = content.CanvasPosition
 		local b = input.CanvasPosition
 		local c = SmoothingFactor
@@ -243,11 +256,10 @@ Utils.SmoothScroll = function(content, SmoothingFactor)
 end
 
 do
-    local TweenService = Services.TweenService
     Utils.Tween = function(Object, Style, Direction, Time, Goal)
         local TInfo = TweenInfo.new(Time, Enum.EasingStyle[Style], Enum.EasingDirection[Direction])
-        local Tween = TweenService.Create(TweenService, Object, TInfo, Goal)
-        Tween.Play(Tween);
+        local Tween = TweenService:Create(Object, TInfo, Goal)
+        Tween:Play()
         return Tween
     end
 end
@@ -273,16 +285,14 @@ Utils.Draggable = function(UI, DragUi)
 			Position = Position
 		});
 	end
-    local CoreGui = Services.CoreGui
-    local UserInputService = Services.UserInputService
 
 	AddConnection(CConnect(UI.InputBegan, function(Input)
-		if ((Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch) and not UserInputService.GetFocusedTextBox(UserInputService)) then
+		if ((Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch) and not UserInputService:GetFocusedTextBox()) then
 			DragToggle = true
 			DragStart = Input.Position
 			StartPos = UI.Position
 
-			local Objects = CoreGui.GetGuiObjectsAtPosition(CoreGui, DragStart.X, DragStart.Y);
+			local Objects = CoreGui:GetGuiObjectsAtPosition(DragStart.X, DragStart.Y);
 
 			AddConnection(CConnect(Input.Changed, function()
 				if (Input.UserInputState == Enum.UserInputState.End) then
@@ -364,9 +374,9 @@ Utils.Blink = function(Object, Goal, Color1, Color2, Time)
 
 	CThread(function()
 		local T1 = Utils.Tween(Object, "Quad", "Out", Time, Blink).Completed
-        T1.Wait(T1);
-        local T2 = Utils.Tween(Object, "Quad", "Out", Time, Normal);
-	end)()
+        T1:Wait()
+        Utils.Tween(Object, "Quad", "Out", Time, Normal);
+	end)
 end
 
 Utils.TweenTrans = function(Object, Transparency)
@@ -432,7 +442,7 @@ Utils.Intro = function(Object)
 			BackgroundTransparency = 0
 		});
 
-        CWait(Tween.Completed);
+        Tween.Completed:Wait()
 		Object.Visible = false
 
 		local Tween = Utils.Tween(Frame, "Quad", "Out", .25, {
@@ -443,7 +453,7 @@ Utils.Intro = function(Object)
 			CornerRadius = UDimnew(1, 0);
 		});
 
-		CWait(Tween.Completed);
+		Tween.Completed:Wait()
 		Destroy(Frame);
 	else
 		Frame.Visible = true
@@ -458,14 +468,14 @@ Utils.Intro = function(Object)
 			CornerRadius = CornerRadius
 		});
 
-		CWait(Tween.Completed);
+		Tween.Completed:Wait()
 		Object.Visible = true
 
 		local Tween = Utils.Tween(Frame, "Quad", "Out", .25, {
 			BackgroundTransparency = 1
 		});
 
-		CWait(Tween.Completed);
+		Tween.Completed:Wait()
 		Destroy(Frame);
 	end
 end
@@ -574,7 +584,7 @@ function UILibrary:LoadWindow(Title, Size)
 		Timer = tick();
 	end))
 
-	AddConnection(CConnect(Services.RunService.RenderStepped, function()
+	AddConnection(CConnect(RunService.RenderStepped, function()
 		if LeftWindow then
 			local Time = tick() - Timer
 			if Time >= 3 and not Idle then
@@ -734,7 +744,7 @@ function UILibrary:LoadWindow(Title, Size)
 						BackgroundColor3 = Enabled and self.ColorTheme or Colors.ElementBackground
 					});
 					Utils.Tween(Switch, "Quad", "Out", .2, {
-						BackgroundColor3 = Enabled and Colors.TextPrimary : Colors.TextDisabled
+						BackgroundColor3 = Enabled and Colors.TextPrimary or Colors.TextDisabled
 					});
 
 					Callback(Enabled);
@@ -815,7 +825,7 @@ function UILibrary:LoadWindow(Title, Size)
 					});
 
 					Label.Text = tostring(round(Value))
-					CWait(Tween.Completed);
+					Tween.Completed:Wait()
 				end
 
 				AddConnection(CConnect(Hitbox.MouseButton1Down, function()
@@ -829,7 +839,7 @@ function UILibrary:LoadWindow(Title, Size)
 					Update();
 				end))
 
-				AddConnection(CConnect(Services.UserInputService.InputEnded, function(Input)
+				AddConnection(CConnect(UserInputService.InputEnded, function(Input)
 					if (Input.UserInputType == Enum.UserInputType.MouseButton1 and Moving) then
 						Moving = false
 
@@ -866,7 +876,7 @@ function UILibrary:LoadWindow(Title, Size)
 				SelectColor.Title.Font = Enum.Font.Gotham
 				SelectColor.Title.TextSize = 14
 
-				local H, S, V = DefaultColor.ToHSV(DefaultColor);
+				local H, S, V = DefaultColor:ToHSV();
 				local Opened = false
 				local Rainbow = false
 
@@ -877,7 +887,7 @@ function UILibrary:LoadWindow(Title, Size)
 				end
 
 				local function UpdateColor()
-					H, S, V = CurrentColor.ToHSV(CurrentColor);
+					H, S, V = CurrentColor:ToHSV();
 
 					SliderBar.Position = UDim2new(0, 0, H, 2);
 					CanvasBar.Position = UDim2new(S, 2, 1 - V, 2);
@@ -926,7 +936,7 @@ function UILibrary:LoadWindow(Title, Size)
 							});
 
 							Callback(CurrentColor);
-							CWait(Tween.Completed);
+							Tween.Completed:Wait()
 						end
 					end
 
@@ -935,7 +945,7 @@ function UILibrary:LoadWindow(Title, Size)
 						Update();
 					end));
 
-					AddConnection(CConnect(Services.UserInputService.InputEnded, function(Input)
+					AddConnection(CConnect(UserInputService.InputEnded, function(Input)
 						if (Input.UserInputType == Enum.UserInputType.MouseButton1 and Moving) then
 							Moving = false
 						end
@@ -968,10 +978,10 @@ function UILibrary:LoadWindow(Title, Size)
 
 							local Position = UDim2.new(XValue, 2, YValue, 2);
 							local Tween = Utils.Tween(CanvasBar, "Linear", "Out", .08, {
-								Position = Position
+									Position = Position
 							});
 							Callback(CurrentColor);
-							CWait(Tween.Completed);
+							Tween.Completed:Wait()
 						end
 					end
 
@@ -980,7 +990,7 @@ function UILibrary:LoadWindow(Title, Size)
 						Update();
 					end));
 
-					AddConnection(CConnect(Services.UserInputService.InputEnded, function(Input)
+					AddConnection(CConnect(UserInputService.InputEnded, function(Input)
 						if Input.UserInputType == Enum.UserInputType.MouseButton1 and Moving then
 							Moving = false
 						end
@@ -1057,13 +1067,13 @@ function UILibrary:LoadWindow(Title, Size)
 					end
 				end));
 
-				ToggleFunction(RainbowToggle.Container, false, function(Callback)
+				ToggleFunction(RainbowToggle.Container, false, function(CallbackValue)
 					if Opened then
-						Rainbow = Callback
+						Rainbow = CallbackValue
 					end
 				end);
 
-				AddConnection(CConnect(Services.RunService.RenderStepped, function()
+				AddConnection(CConnect(RunService.RenderStepped, function()
 					if Rainbow then
 						local Hue = (tick() / 5) % 1
 						CurrentColor = Color3.fromHSV(Hue, S, V);
@@ -1117,9 +1127,10 @@ function UILibrary:LoadWindow(Title, Size)
 						Utils.Tween(DropdownElement.Button, "Quad", "Out", .2, {
 							Rotation = 0
 						});
-						CWait(Utils.Tween(DropdownSelection, "Quad", "Out", .2, {
+						local Tween = Utils.Tween(DropdownSelection, "Quad", "Out", .2, {
 							Size = UDim2.new(1, -10, 0, 0)
-						}).Completed);
+						})
+						Tween.Completed:Wait()
 
 						DropdownSelection.Frame.Visible = false
 						DropdownSelection.Visible = false
